@@ -1286,7 +1286,22 @@ reportFE <- function(gdx, regionSubsetList = NULL,
 
   #--- CDR ---
 
-  if(cdr_mod != "off"){
+  if(cdr_mod == "portfolio") {
+    v33_FEdemand  <- readGDX(gdx,name=c("v33_FEdemand"), field="l", restore_zeros=F)[,t,] * TWa_2_EJ
+    CDR_te_list <- list("dac"="DAC", "weathering"="EW", "oae"="OAE")
+    CDR_FE_list <- list("feels"="Electricity", "fegas"="Gases", "fehes"="Heat", "feh2s"="Hydrogen", "fedie"="Diesel")
+
+    for (CDR_te in getItems(v33_FEdemand, dim="all_te")) {
+      for (CDR_FE in getItems(mselect(v33_FEdemand, all_te=CDR_te), dim="all_enty")) {
+        variable_name <- paste("FE|CDR|", CDR_te_list[[CDR_te]], "|+|", CDR_FE_list[[CDR_FE]], " (EJ/yr)", sep="")
+        out <- mbind(out, setNames(dimSums(mselect(v33_FEdemand, all_te=CDR_te, all_enty=CDR_FE)), variable_name))
+      }
+      out <- mbind(out, setNames(dimSums(mselect(v33_FEdemand, all_te=CDR_te)),
+                        paste("FE|CDR|++|", CDR_te_list[[CDR_te]] ," (EJ/yr)", sep="")))
+    }
+  }
+
+  if(cdr_mod != "off" && cdr_mod != "portfolio"){
     vm_otherFEdemand  <- readGDX(gdx,name=c("vm_otherFEdemand"),field="l",format="first_found")[,t,]*TWa_2_EJ
 
     s33_rockgrind_fedem <- readGDX(gdx,"s33_rockgrind_fedem", react = "silent")
