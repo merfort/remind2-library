@@ -169,6 +169,7 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL, t = c(seq(200
     if (is.null(v33_emiEW)) {
       v33_emiEW <- new.magpie(getItems(vm_co2capture, "all_regi"), getItems(vm_co2capture, "ttot"), fill = 0)
     }
+    # variable used in the rest of the reporting
     v33_emi <- mbind(v33_emiDAC, v33_emiEW)
     v33_emi <- setNames(v33_emi, c("dac", "weathering"))
   }

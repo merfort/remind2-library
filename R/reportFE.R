@@ -1288,16 +1288,21 @@ reportFE <- function(gdx, regionSubsetList = NULL,
 
   if(cdr_mod == "portfolio") {
     v33_FEdemand  <- readGDX(gdx,name=c("v33_FEdemand"), field="l", restore_zeros=F)[,t,] * TWa_2_EJ
+    # mappings from gams set names to names in mifs
     CDR_te_list <- list("dac"="DAC", "weathering"="EW", "oae"="OAE")
     CDR_FE_list <- list("feels"="Electricity", "fegas"="Gases", "fehes"="Heat", "feh2s"="Hydrogen", "fedie"="Diesel")
 
+    # loop to compute variables "FE|CDR|++|<CDR technology> (EJ/yr)" and "FE|CDR|<CDR technology>|+|<FE type> (EJ/yr)",
+    # e.g., "FE|CDR|++|DAC (EJ/yr)" and "FE|CDR|DAC|+|Electricity (EJ/yr)"
     for (CDR_te in getItems(v33_FEdemand, dim="all_te")) {
-      for (CDR_FE in getItems(mselect(v33_FEdemand, all_te=CDR_te), dim="all_enty")) {
-        variable_name <- paste("FE|CDR|", CDR_te_list[[CDR_te]], "|+|", CDR_FE_list[[CDR_FE]], " (EJ/yr)", sep="")
-        out <- mbind(out, setNames(dimSums(mselect(v33_FEdemand, all_te=CDR_te, all_enty=CDR_FE)), variable_name))
-      }
       out <- mbind(out, setNames(dimSums(mselect(v33_FEdemand, all_te=CDR_te)),
-                        paste("FE|CDR|++|", CDR_te_list[[CDR_te]] ," (EJ/yr)", sep="")))
+                                 sprintf("FE|CDR|++|%s (EJ/yr)", CDR_te_list[[CDR_te]])))
+      # loop over all FE technologies used by a given CDR technology
+      for (CDR_FE in getItems(mselect(v33_FEdemand, all_te=CDR_te), dim="all_enty")) {
+        variable_name <- sprintf("FE|CDR|%s|+|%s (EJ/yr)", CDR_te_list[[CDR_te]], CDR_FE_list[[CDR_FE]])
+        out <- mbind(out, setNames(dimSums(mselect(v33_FEdemand, all_te=CDR_te, all_enty=CDR_FE)),
+                                   variable_name))
+      }
     }
   }
 
