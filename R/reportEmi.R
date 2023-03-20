@@ -176,7 +176,6 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL, t = c(seq(200
   # stored CO2
   vm_co2CCS <- readGDX(gdx, "vm_co2CCS", field = "l", restore_zeros = F)[, t, ]
 
-
   # CO2 captured by industry sectors
   vm_emiIndCCS <- readGDX(gdx, "vm_emiIndCCS", field = "l", restore_zeros = T)[, t, ]
   getSets(vm_emiIndCCS)[3] <- "secInd37" # relabel subsector dimension to match with other parameters
@@ -698,12 +697,14 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL, t = c(seq(200
   } else {
     mselect(vm_emiTeMkt, all_enty = "co2")
   }
+
+  s33_CO2_chem_decomposition <- readGDX(gdx, "s33_CO2_chem_decomposition")
   out <- mbind(out,
                setNames(
                  # vm_emiTeMkt is variable in REMIND closest to energy co2 emissions
                  (dimSums(sel_vm_emiTeMkt_co2, dim = 3)
                   # subtract non-BECCS CCU CO2 (i.e., non-CCS part of DAC)
-                  - (1 - p_share_CCS) * (-v33_emi[,,"dac"])
+                  - (1 - p_share_CCS) * (-v33_emi[,,"dac"] - s33_CO2_chem_decomposition * v33_emi[,,"oae"])
                   # deduce co2 captured by industrial processes which is not stored but used for CCU
                   # -> gets accounted in industrial process emissions
                   - vm_emiIndCCS[, , "co2cement_process"]*(1-p_share_CCS)) * GtC_2_MtCO2,
@@ -738,8 +739,8 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL, t = c(seq(200
                  # land-use change CO2
                  setNames(dimSums(vm_emiMacSector[, , "co2luc"], dim = 3) * GtC_2_MtCO2,
                           "Emi|CO2|+|Land-Use Change (Mt CO2/yr)"),
-                 # negative emissions from (non-BECCS) CDR (DACCS, EW)
-                 setNames((v33_emi[,,"weathering"] + v33_emi[,,"dac"] * p_share_CCS) * GtC_2_MtCO2,
+                 # negative emissions from (non-BECCS) CDR (DACCS, EW, OAE)
+                 setNames((v33_emi[,,"weathering"] + v33_emi[,,"dac"] * p_share_CCS + v33_emi[,,"oae"]) * GtC_2_MtCO2,
                           "Emi|CO2|+|non-BECCS CDR (Mt CO2/yr)")
     )
 
@@ -764,8 +765,8 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL, t = c(seq(200
                  # land-use change CO2
                  setNames(dimSums(vm_emiMacSector[, , "co2luc"], dim = 3) * GtC_2_MtCO2,
                           "Emi|CO2|+|Land-Use Change (Mt CO2/yr)"),
-                 # negative emissions from (non-BECCS) CDR (DACCS, EW)
-                 setNames((v33_emi[,,"weathering"] + v33_emi[,,"dac"] * p_share_CCS) * GtC_2_MtCO2,
+                 # negative emissions from (non-BECCS) CDR (DACCS, EW, OAE)
+                 setNames((v33_emi[,,"weathering"] + v33_emi[,,"dac"] * p_share_CCS + v33_emi[,,"oae"]) * GtC_2_MtCO2,
                           "Emi|CO2|+|non-BECCS CDR (Mt CO2/yr)")
     )
 
@@ -950,6 +951,9 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL, t = c(seq(200
                # total co2 captured by DAC
                setNames(-v33_emi[,,"dac"] * GtC_2_MtCO2,
                           "Carbon Management|Carbon Capture|+|DAC (Mt CO2/yr)"),
+               # total co2 captured from calcination for OAE
+               setNames(- s33_CO2_chem_decomposition * v33_emi[,,"oae"] * GtC_2_MtCO2,
+                          "Carbon Management|Carbon Capture|+|OAE calcination (Mt CO2/yr)"),
                # total co2 captured
                setNames(vm_co2capture * GtC_2_MtCO2,
                           "Carbon Management|Carbon Capture (Mt CO2/yr)")
@@ -1288,7 +1292,10 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL, t = c(seq(200
                # total EW
                # total co2 captured by EW
                setNames(v33_emi[,,"weathering"] * GtC_2_MtCO2,
-                        "Emi|CO2|CDR|EW (Mt CO2/yr)"))
+                        "Emi|CO2|CDR|EW (Mt CO2/yr)"),
+               # total co2 captured by OAE
+               setNames(v33_emi[,,"oae"] * GtC_2_MtCO2,
+                        "Emi|CO2|CDR|OAE (Mt CO2/yr)"))
   
   out <- mbind(out,
                # total CDR
@@ -1296,6 +1303,7 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL, t = c(seq(200
                          + out[, , "Emi|CO2|CDR|BECCS (Mt CO2/yr)"]
                          + out[, , "Emi|CO2|CDR|DACCS (Mt CO2/yr)"]
                          + out[, , "Emi|CO2|CDR|EW (Mt CO2/yr)"]
+                         + out[, , "Emi|CO2|CDR|OAE (Mt CO2/yr)"]
                          + out[, , "Emi|CO2|CDR|Industry CCS|Synthetic Fuels (Mt CO2/yr)"],
                          "Emi|CO2|CDR (Mt CO2/yr)"))
   
@@ -1383,7 +1391,6 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL, t = c(seq(200
                setNames(out[, , "Emi|CO2|Gross|Energy|+|Supply (Mt CO2/yr)"]
                         - out[, , "Emi|CO2|Gross|Energy|Supply|+|Electricity (Mt CO2/yr)"],
                         "Emi|CO2|Gross|Energy|Supply|Non-electric (Mt CO2/yr)"))
-
 
   ## 5. Non-CO2 GHG Emissions ----
 
@@ -1892,7 +1899,7 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL, t = c(seq(200
                  # CDR energy-related emissions
                  (dimSums(mselect(EmiFeCarrier[, , "ETS"], emi_sectors = "CDR"), dim = 3)
                   # Captured CO2 by non-BECCS capture technologies
-                  + (v33_emi[,,"weathering"] + v33_emi[,,"dac"] * p_share_CCS)) * GtC_2_MtCO2,
+                  + (v33_emi[,,"weathering"] + v33_emi[,,"dac"] * p_share_CCS + v33_emi[,,"oae"])) * GtC_2_MtCO2,
                  "Emi|GHG|ETS|+|non-BECCS CDR (Mt CO2eq/yr)"),
 
                # Extraction
@@ -2306,6 +2313,7 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL, t = c(seq(200
                      "Emi|CO2|CDR|Industry CCS|Synthetic Fuels (Mt CO2/yr)",
                      "Emi|CO2|CDR|DACCS (Mt CO2/yr)",
                      "Emi|CO2|CDR|EW (Mt CO2/yr)",
+                     "Emi|CO2|CDR|OAE (Mt CO2/yr)",
                      "Emi|CO2|CDR|Land-Use Change (Mt CO2/yr)")
 
 
