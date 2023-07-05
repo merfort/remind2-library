@@ -698,13 +698,13 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL, t = c(seq(200
     mselect(vm_emiTeMkt, all_enty = "co2")
   }
 
-  s33_CO2_chem_decomposition <- readGDX(gdx, "s33_CO2_chem_decomposition")
+  s33_OAE_chem_decomposition <- readGDX(gdx, "s33_OAE_chem_decomposition")
   out <- mbind(out,
                setNames(
                  # vm_emiTeMkt is variable in REMIND closest to energy co2 emissions
                  (dimSums(sel_vm_emiTeMkt_co2, dim = 3)
                   # subtract non-BECCS CCU CO2 (i.e., non-CCS part of DAC)
-                  - (1 - p_share_CCS) * (-v33_emi[,,"dac"] - s33_CO2_chem_decomposition * v33_emi[,,"oae"])
+                  - (1 - p_share_CCS) * (-v33_emi[,,"dac"] - s33_OAE_chem_decomposition * v33_emi[,,"oae"])
                   # deduce co2 captured by industrial processes which is not stored but used for CCU
                   # -> gets accounted in industrial process emissions
                   - vm_emiIndCCS[, , "co2cement_process"]*(1-p_share_CCS)) * GtC_2_MtCO2,
@@ -952,7 +952,7 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL, t = c(seq(200
                setNames(-v33_emi[,,"dac"] * GtC_2_MtCO2,
                           "Carbon Management|Carbon Capture|+|DAC (Mt CO2/yr)"),
                # total co2 captured from calcination for OAE
-               setNames(- s33_CO2_chem_decomposition * v33_emi[,,"oae"] * GtC_2_MtCO2,
+               setNames(- s33_OAE_chem_decomposition * v33_emi[,,"oae"] * GtC_2_MtCO2,
                           "Carbon Management|Carbon Capture|+|OAE calcination (Mt CO2/yr)"),
                # total co2 captured
                setNames(vm_co2capture * GtC_2_MtCO2,
@@ -1202,7 +1202,9 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL, t = c(seq(200
                setNames(out[, , "Carbon Management|Carbon Capture|+|Industry Process (Mt CO2/yr)"] * p_share_CCS,
                           "Carbon Management|Storage|+|Industry Process (Mt CO2/yr)"),
                setNames(out[, , "Carbon Management|Carbon Capture|+|DAC (Mt CO2/yr)"] * p_share_CCS,
-                          "Carbon Management|Storage|+|DAC (Mt CO2/yr)")
+                          "Carbon Management|Storage|+|DAC (Mt CO2/yr)"),
+               setNames(out[, , "Carbon Management|Carbon Capture|+|OAE calcination (Mt CO2/yr)"] * p_share_CCS,
+                          "Carbon Management|Storage|+|OAE calcination (Mt CO2/yr)")
   )
 
   # calculate carbon storage variables for energy supply CCS
@@ -1260,6 +1262,7 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL, t = c(seq(200
                                + out[, , "Carbon Management|Carbon Capture|Industry Energy|+|Biomass (Mt CO2/yr)"])
                               / (out[, , "Carbon Management|Carbon Capture|+|Biomass|Pe2Se (Mt CO2/yr)"] 
                                  + out[, , "Carbon Management|Carbon Capture|+|DAC (Mt CO2/yr)"] 
+                                 + out[, , "Carbon Management|Carbon Capture|+|OAE calcination (Mt CO2/yr)"]
                                  + out[, , "Carbon Management|Carbon Capture|Industry Energy|+|Biomass (Mt CO2/yr)"]
                                  + out[, , "Carbon Management|Carbon Capture|+|Fossil|Pe2Se (Mt CO2/yr)"]
                                  + out[, , "Carbon Management|Carbon Capture|Industry Energy|+|Fossil (Mt CO2/yr)"]
