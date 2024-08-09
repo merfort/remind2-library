@@ -740,7 +740,7 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL, t = c(seq(200
                  setNames(dimSums(vm_emiMacSector[, , "co2luc"], dim = 3) * GtC_2_MtCO2,
                           "Emi|CO2|+|Land-Use Change (Mt CO2/yr)"),
                  # negative emissions from (non-BECCS) CDR (DACCS, EW, OAE)
-                 setNames((v33_emi[,,"weathering"] + v33_emi[,,"dac"] * p_share_CCS + v33_emi[,,"oae"]) * GtC_2_MtCO2,
+                 setNames((v33_emi[,,"weathering"] + v33_emi[,,"dac"] * p_share_CCS + v33_emi[,,"oae"] * (1 - (1 - p_share_CCS) * s33_OAE_chem_decomposition)) * GtC_2_MtCO2,
                           "Emi|CO2|+|non-BECCS CDR (Mt CO2/yr)")
     )
 
@@ -766,7 +766,7 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL, t = c(seq(200
                  setNames(dimSums(vm_emiMacSector[, , "co2luc"], dim = 3) * GtC_2_MtCO2,
                           "Emi|CO2|+|Land-Use Change (Mt CO2/yr)"),
                  # negative emissions from (non-BECCS) CDR (DACCS, EW, OAE)
-                 setNames((v33_emi[,,"weathering"] + v33_emi[,,"dac"] * p_share_CCS + v33_emi[,,"oae"]) * GtC_2_MtCO2,
+                 setNames((v33_emi[,,"weathering"] + v33_emi[,,"dac"] * p_share_CCS + v33_emi[,,"oae"] * (1 - (1 - p_share_CCS) * s33_OAE_chem_decomposition)) * GtC_2_MtCO2,
                           "Emi|CO2|+|non-BECCS CDR (Mt CO2/yr)")
     )
 
@@ -1294,10 +1294,21 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL, t = c(seq(200
                         "Emi|CO2|CDR|DACCS (Mt CO2/yr)"),
                # total EW
                # total co2 captured by EW
-               setNames(v33_emi[,,"weathering"] * GtC_2_MtCO2,
+               setNames(v33_emi[, , "weathering"] * GtC_2_MtCO2,
                         "Emi|CO2|CDR|EW (Mt CO2/yr)"),
-               # total co2 captured by OAE
-               setNames(v33_emi[,,"oae"] * GtC_2_MtCO2,
+               # CO2 uptake in the ocean (gross OAE CDR)
+               setNames(v33_emi[, , "oae"] * GtC_2_MtCO2,
+                        "Emi|CO2|CDR|OAE|+|Uptake Ocean (Mt CO2/yr)"),
+               # Positive CO2 emissions from limestone calcination that are
+               # captured but not stored geologically and released to the
+               # atmosphere (add to gross OAE CDR to get net OAE CDR)
+               setNames(out[, , "Carbon Management|Carbon Capture|+|OAE calcination (Mt CO2/yr)"]
+                        -out[, , "Carbon Management|Storage|+|OAE calcination (Mt CO2/yr)"],
+                        "Emi|CO2|CDR|OAE|+|Calcination Emissions (Mt CO2/yr)"),
+               # Net CDR from OAE
+               setNames(v33_emi[, , "oae"] * GtC_2_MtCO2
+                        +out[, , "Carbon Management|Carbon Capture|+|OAE calcination (Mt CO2/yr)"]
+                        -out[, , "Carbon Management|Storage|+|OAE calcination (Mt CO2/yr)"],
                         "Emi|CO2|CDR|OAE (Mt CO2/yr)"))
   
   out <- mbind(out,
@@ -1902,7 +1913,7 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL, t = c(seq(200
                  # CDR energy-related emissions
                  (dimSums(mselect(EmiFeCarrier[, , "ETS"], emi_sectors = "CDR"), dim = 3)
                   # Captured CO2 by non-BECCS capture technologies
-                  + (v33_emi[,,"weathering"] + v33_emi[,,"dac"] * p_share_CCS + v33_emi[,,"oae"])) * GtC_2_MtCO2,
+                  + (v33_emi[,,"weathering"] + v33_emi[,,"dac"] * p_share_CCS + v33_emi[,,"oae"] * (1 - (1 - p_share_CCS) * s33_OAE_chem_decomposition))) * GtC_2_MtCO2,
                  "Emi|GHG|ETS|+|non-BECCS CDR (Mt CO2eq/yr)"),
 
                # Extraction
